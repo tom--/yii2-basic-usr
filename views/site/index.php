@@ -4,6 +4,8 @@ $this->title = 'My Yii Application';
 ?>
 <div class="site-index">
 
+    <?php \yii\helpers\VarDumper::dump(Yii::$app->user, 10, true); ?>
+
     <div class="jumbotron">
         <h1>Congratulations!</h1>
 

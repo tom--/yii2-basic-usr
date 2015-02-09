@@ -5,21 +5,32 @@ $params = require(__DIR__ . '/params.php');
 $config = [
     'id' => 'basic',
     'basePath' => dirname(__DIR__),
+    'aliases' => [
+        '@nineinchnick/usr' => '@vendor/nineinchnick/yii2-usr',
+    ],
     'bootstrap' => ['log'],
     'components' => [
         'request' => [
             // !!! insert a secret key in the following (if it is empty) - this is required by cookie validation
-            'cookieValidationKey' => 'RQd63MHfCeC1TUt6UQXmgs1aBK2G19TV',
+            'cookieValidationKey' => 'tVSraocDAcnhQsJ7xOiUvH1E33dG6JwV',
         ],
         'cache' => [
             'class' => 'yii\caching\FileCache',
         ],
         'user' => [
             'identityClass' => 'app\models\User',
-            'enableAutoLogin' => true,
+            'loginUrl' => ['usr/login'],
+            'enableSession' => true,
         ],
         'errorHandler' => [
             'errorAction' => 'site/error',
+        ],
+        'mail' => [
+            'class' => 'yii\swiftmailer\Mailer',
+            'useFileTransport' => YII_DEBUG,
+            'messageConfig' => [
+                'from' => 'noreply@yoursite.com',
+            ],
         ],
         'mailer' => [
             'class' => 'yii\swiftmailer\Mailer',
@@ -38,6 +49,21 @@ $config = [
             ],
         ],
         'db' => require(__DIR__ . '/db.php'),
+    ],
+    'modules' => [
+        'usr' => [
+            'class' => 'nineinchnick\usr\Module',
+            'requireVerifiedEmail' => false,
+            'recoveryEnabled' => false,
+            'rememberMeDuration' => false,
+            'dicewareEnabled' => false,
+            'loginFormBehaviors' => [
+                'app\behaviors\LoginFormBehavior',
+            ],
+            'profileFormBehaviors' => [
+                'app\behaviors\ProfileFormBehavior',
+            ],
+        ],
     ],
     'params' => $params,
 ];

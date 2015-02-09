@@ -13,11 +13,18 @@
         "source": "https://github.com/yiisoft/yii2"
     },
     "minimum-stability": "stable",
+    "repositories": [
+        {
+            "type": "vcs",
+            "url":  "/Volumes/Sites/yii2-usr"
+        }
+    ],
     "require": {
         "php": ">=5.4.0",
         "yiisoft/yii2": "*",
         "yiisoft/yii2-bootstrap": "*",
-        "yiisoft/yii2-swiftmailer": "*"
+        "yiisoft/yii2-swiftmailer": "*",
+        "nineinchnick/yii2-usr": "dev-local"
     },
     "require-dev": {
         "yiisoft/yii2-codeception": "*",

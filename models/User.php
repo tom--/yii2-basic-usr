@@ -2,71 +2,55 @@
 
 namespace app\models;
 
-class User extends \yii\base\Object implements \yii\web\IdentityInterface
+use Yii;
+use nineinchnick\usr\components;
+use yii\base\NotSupportedException;
+
+/**
+ * This is the model class for table "{{users}}".
+ *
+ * Inherits from:
+ *  - nineinchnick\usr\components\IdentityInterface
+ *      - yii\web\IdentityInterface
+ *
+ *          Based in the Yii Identity with one additional method.
+ *
+ *  - nineinchnick\usr\components\EditableIdentityInterface
+ *
+ *      The methods that yii2-usr needs to save an instance of our Identity
+ *      to DB and to get and set attributes of an instance.
+ *
+ *  - nineinchnick\usr\components\PasswordHistoryIdentityInterface
+ *
+ *      Methods yii2-usr needs to access and reset the date when the user's password
+ *      was last changed.
+ *
+ * @property integer $id User id and primary key
+ * @property string $email
+ * @property string $password
+ * @property string $created_on UTC datetime
+ * @property string $updated_on UTC datetime
+ * @property string $last_visit_on UTC datetime
+ * @property string $password_set_on UTC datetime
+ */
+class User extends \yii\db\ActiveRecord implements
+    components\IdentityInterface,
+    components\EditableIdentityInterface,
+    components\PasswordHistoryIdentityInterface
 {
-    public $id;
-    public $username;
-    public $password;
-    public $authKey;
-    public $accessToken;
-
-    private static $users = [
-        '100' => [
-            'id' => '100',
-            'username' => 'admin',
-            'password' => 'admin',
-            'authKey' => 'test100key',
-            'accessToken' => '100-token',
-        ],
-        '101' => [
-            'id' => '101',
-            'username' => 'demo',
-            'password' => 'demo',
-            'authKey' => 'test101key',
-            'accessToken' => '101-token',
-        ],
-    ];
-
     /**
+     * Required by IdentityInterface
+     *
      * @inheritdoc
      */
     public static function findIdentity($id)
     {
-        return isset(self::$users[$id]) ? new static(self::$users[$id]) : null;
+        return static::findOne($id);
     }
 
     /**
-     * @inheritdoc
-     */
-    public static function findIdentityByAccessToken($token, $type = null)
-    {
-        foreach (self::$users as $user) {
-            if ($user['accessToken'] === $token) {
-                return new static($user);
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Finds user by username
+     * Required by IdentityInterface
      *
-     * @param  string      $username
-     * @return static|null
-     */
-    public static function findByUsername($username)
-    {
-        foreach (self::$users as $user) {
-            if (strcasecmp($user['username'], $username) === 0) {
-                return new static($user);
-            }
-        }
-
-        return null;
-    }
-
-    /**
      * @inheritdoc
      */
     public function getId()
@@ -75,29 +59,202 @@ class User extends \yii\base\Object implements \yii\web\IdentityInterface
     }
 
     /**
+     * Required by IdentityInterface
+     *
+     * Except that we are using 'email' as the external user identifier, not 'username'.
+     *
+     * @inheritdoc
+     */
+    public static function findByUsername($email)
+    {
+        return self::find()->where(['email' => $email])->one();
+    }
+
+    /**
+     * Required by IdentityInterface
+     *
+     * We are not using access token-based authentication, we are only using user/pass.
+     *
+     * @inheritdoc
+     */
+    public static function findIdentityByAccessToken($token, $type = null)
+    {
+        throw new NotSupportedException('Token-based authentication is not supported.');
+    }
+
+    /**
+     * Required by IdentityInterface
+     *
+     * Our app does not allow a "remember me" cookie that encodes the user's ID. Our app is
+     * used mostly on shared computers.
+     *
      * @inheritdoc
      */
     public function getAuthKey()
     {
-        return $this->authKey;
+        throw new NotSupportedException('Cookie-based login is not supported.');
     }
 
     /**
+     * Required by IdentityInterface
+     *
      * @inheritdoc
      */
     public function validateAuthKey($authKey)
     {
-        return $this->authKey === $authKey;
+        throw new NotSupportedException('Cookie-based login is not supported.');
     }
 
     /**
-     * Validates password
+     * Required by IdentityInterface
      *
-     * @param  string  $password password to validate
-     * @return boolean if password provided is valid for current user
+     * @inheritdoc
      */
-    public function validatePassword($password)
+    public function authenticate($password)
     {
-        return $this->password === $password;
+        if (!$this->verifyPassword($password)) {
+            return [self::ERROR_INVALID, Yii::t('usr', 'Invalid email or password.')];
+        }
+
+        $this->last_visit_on = gmdate('Y-m-d H:i:s');
+        $this->save(false);
+        return true;
+    }
+
+    /**
+     * Verifies a password against a saved hash.
+     *
+     * Wraps yii\base\Security::validatePassword() in a try/catch so parameter errors
+     * are logged but otherwise treated as a login failure.
+     *
+     * @param string $password password to validate
+     *
+     * @return bool if password provided matches password
+     */
+    public function verifyPassword($password)
+    {
+        try {
+            return Yii::$app->security->validatePassword($password, $this->password);
+        } catch (\yii\base\InvalidParamException $e) {
+            Yii::warning($e->getMessage(), __METHOD__);
+            return false;
+        }
+    }
+
+    /**
+     * Sets some history dates on the user record before saving.
+     *
+     * @param bool $insert
+     *
+     * @return bool
+     */
+    public function beforeSave($insert)
+    {
+        if ($insert) {
+            $this->created_on = gmdate('Y-m-d H:i:s');
+        } else {
+            $this->updated_on = gmdate('Y-m-d H:i:s');
+        }
+
+        return parent::beforeSave($insert);
+    }
+
+
+    /**
+     * Required by EditableIdentityInterface
+     *
+     * @inheritdoc
+     */
+    public function saveIdentity($requireVerifiedEmail = false)
+    {
+        if (!$this->save()) {
+            Yii::warning('Failed to save user: ' . print_r($this->getErrors(), true), __METHOD__);
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Required by EditableIdentityInterface
+     *
+     * Maps from \nineinchnick\usr\models\ProfileForm attributes to attributes of this model.
+     *
+     * @see \nineinchnick\usr\models\ProfileForm::attributes()
+     *
+     * @inheritdoc
+     */
+    public function identityAttributesMap()
+    {
+        return [
+            'email' => 'email',
+        ];
+    }
+
+    /**
+     * Required by EditableIdentityInterface
+     *
+     * Allows the profile form to set our attributes.
+     *
+     * @inheritdoc
+     */
+    public function setIdentityAttributes(array $profileAttributes)
+    {
+        $allowedAttributes = $this->identityAttributesMap();
+        foreach ($profileAttributes as $name => $value) {
+            if (isset($allowedAttributes[$name])) {
+                $key = $allowedAttributes[$name];
+                $this->$key = $value;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Required by EditableIdentityInterface
+     *
+     * Allows the profile form to get our attributes.
+     *
+     * @inheritdoc
+     */
+    public function getIdentityAttributes()
+    {
+        $allowedAttributes = array_flip($this->identityAttributesMap());
+        $result = [];
+        foreach ($this->getAttributes() as $name => $value) {
+            if (isset($allowedAttributes[$name])) {
+                $result[$allowedAttributes[$name]] = $value;
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Required by PasswordHistoryIdentityInterface
+     *
+     * @inheritdoc
+     */
+    public function getPasswordDate($password = null)
+    {
+        // We aren't implementing password histories so...
+        if ($password === null) {
+            return $this->password_set_on;
+        }
+
+        return null;
+    }
+
+    /**
+     * Required by PasswordHistoryIdentityInterface
+     *
+     * @inheritdoc
+     */
+    public function resetPassword($password)
+    {
+        $this->password = Yii::$app->security->generatePasswordHash($password);
+        $this->password_set_on = gmdate('Y-m-d H:i:s');
+        return $this->save();
     }
 }
