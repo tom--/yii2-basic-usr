@@ -320,7 +320,7 @@
             "source": {
                 "type": "git",
                 "url": "/Volumes/Sites/yii2-usr",
-                "reference": "86ad2bf004a99d483344c7bbf18169ca34e2ca38"
+                "reference": "dbbabb141ef7134048f5b721f72f2054d9c06338"
             },
             "require": {
                 "yiisoft/yii2": "*",
@@ -351,7 +351,7 @@
                 }
             ],
             "description": "Yii 2.0 framework module for user authentication, password reset, registration and profile updating.",
-            "time": "2015-02-09 02:36:31"
+            "time": "2015-02-17 21:24:59"
         },
         {
             "name": "swiftmailer/swiftmailer",

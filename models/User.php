@@ -28,15 +28,15 @@ use yii\base\NotSupportedException;
  * @property integer $id User id and primary key
  * @property string $email
  * @property string $password
- * @property string $created_on UTC datetime
- * @property string $updated_on UTC datetime
- * @property string $last_visit_on UTC datetime
- * @property string $password_set_on UTC datetime
+ * @property string $created UTC datetime
+ * @property string $updated UTC datetime
+ * @property string $last_visit UTC datetime
+ * @property string $password_set UTC datetime
  */
 class User extends \yii\db\ActiveRecord implements
-    components\IdentityInterface,
-    components\EditableIdentityInterface,
-    components\PasswordHistoryIdentityInterface
+    components\IdentityInterface
+    , components\EditableIdentityInterface
+    , components\PasswordHistoryIdentityInterface
 {
     /**
      * Required by IdentityInterface
@@ -116,7 +116,7 @@ class User extends \yii\db\ActiveRecord implements
             return [self::ERROR_INVALID, Yii::t('usr', 'Invalid email or password.')];
         }
 
-        $this->last_visit_on = gmdate('Y-m-d H:i:s');
+        $this->last_visit = gmdate('Y-m-d H:i:s');
         $this->save(false);
         return true;
     }
@@ -140,25 +140,6 @@ class User extends \yii\db\ActiveRecord implements
             return false;
         }
     }
-
-    /**
-     * Sets some history dates on the user record before saving.
-     *
-     * @param bool $insert
-     *
-     * @return bool
-     */
-    public function beforeSave($insert)
-    {
-        if ($insert) {
-            $this->created_on = gmdate('Y-m-d H:i:s');
-        } else {
-            $this->updated_on = gmdate('Y-m-d H:i:s');
-        }
-
-        return parent::beforeSave($insert);
-    }
-
 
     /**
      * Required by EditableIdentityInterface
@@ -232,6 +213,24 @@ class User extends \yii\db\ActiveRecord implements
     }
 
     /**
+     * Sets some history dates on the user record before saving.
+     *
+     * @param bool $insert
+     *
+     * @return bool
+     */
+    public function beforeSave($insert)
+    {
+        if ($insert) {
+            $this->created = gmdate('Y-m-d H:i:s');
+        } else {
+            $this->updated = gmdate('Y-m-d H:i:s');
+        }
+
+        return parent::beforeSave($insert);
+    }
+
+    /**
      * Required by PasswordHistoryIdentityInterface
      *
      * @inheritdoc
@@ -240,7 +239,7 @@ class User extends \yii\db\ActiveRecord implements
     {
         // We aren't implementing password histories so...
         if ($password === null) {
-            return $this->password_set_on;
+            return $this->password_set;
         }
 
         return null;
@@ -254,7 +253,7 @@ class User extends \yii\db\ActiveRecord implements
     public function resetPassword($password)
     {
         $this->password = Yii::$app->security->generatePasswordHash($password);
-        $this->password_set_on = gmdate('Y-m-d H:i:s');
+        $this->password_set = gmdate('Y-m-d H:i:s');
         return $this->save();
     }
 }
